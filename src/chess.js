@@ -4,6 +4,8 @@
 // todo: hover backgrounds when clicking/hovering pieces
 // todo: moving pieces via clicking squares
 // todo: showing the available squares when clicked on pieces
+// todo: on timeout, if a team cannot possibly win(has only king), then it's draw
+// todo: draw: agreement, resigning, timeout
 
 function __straightPathAll(vec, piece, board, mv) {
     for (const [vx, vy] of vec) {
@@ -106,6 +108,7 @@ class Board {
     pieceMap = new Array(8).fill(0).map(() => new Array(8).fill(null));
     flipped = false;
     history = [];
+    wholeHistory = [];
     turn = true; // true = white, false = black
     FORCE = false;
     PIECE_TEXTURE_ID = 1;
@@ -154,6 +157,7 @@ class Board {
             this.updatePiece(move.capture);
         }
         this.history.splice(-1, 1);
+        this.wholeHistory.splice(-1, 1);
         this.turn = !this.turn;
         this.endDiv.style.opacity = "0";
         this.endDiv.style.pointerEvents = "none";
@@ -169,8 +173,25 @@ class Board {
         return pieces.find(i => i.type[0] !== type && this.canMovePiece(i, king.x, king.y));
     };
 
-    // Returns: 0(nothing), 1(checkmate), 2(stalemate)
+    // Returns: 0(nothing), 1(checkmate), 2(stalemate), 3(insufficient material), 4(50 move rule), 5(repetition)
     getEndStatus(type = "w") {
+        const pc = Array.from(this.pieces);
+        if (
+            pc.length === 2
+            || new Set(pc.map(i => i.type[0])).size === 1
+            || !pc.find(i => i.type === "bk")
+            || !pc.find(i => i.type === "wk")
+        ) return 3;
+        if (pc.length === 3 && pc.some(i => i.type[1] === "n")) return 3; // 1 knight, 2 kings
+        if (pc.length === 4) {
+            const kn = pc.filter(i => i.type[1] === "n");
+            if (kn.length === 2 && kn[1].type[0] === kn[0].type[0]) return 3; // 2 same knight, 2 kings
+        }
+        const lastPawnOrCapture = this.history.length - this.history.lastIndexOf(i => i.pieceType[1] === "p" || i.capture);
+        if (lastPawnOrCapture >= 50) return 4;
+        const lastWhole = this.history.at(-1);
+        if (this.history.filter(i => i === lastWhole).length >= 3) return 5;
+
         let t = this.turn;
         this.turn = type === "w";
         for (const piece of this.pieces) {
@@ -303,6 +324,7 @@ class Board {
                 return false;
             }
             this.history.push({
+                pieceType: piece.type,
                 xD: x,
                 yD: y,
                 xS: ox,
@@ -310,6 +332,14 @@ class Board {
                 capture: capture ? {x: capture.x, y: capture.y, type: capture.type} : null,
                 hasMoved: piece.hasMoved
             });
+            let whole = "";
+            for (let x = 0; x < 8; x++) {
+                for (let y = 0; y < 8; y++) {
+                    const p = this.get(x, y);
+                    whole += p ? p.type : "  ";
+                }
+            }
+            this.wholeHistory.push(whole);
             piece.hasMoved = true;
             if (Math.abs(ox - x) === 2 && piece.type[1] === "k") {
                 const p = x > ox ? this.pieceMap[7][piece.y] : this.pieceMap[0][piece.y];
@@ -352,8 +382,8 @@ class Board {
         if (status && this.div) {
             this.endDiv.style.opacity = "1";
             this.endDiv.style.pointerEvents = "auto";
-            this.endDiv.querySelector(".container").innerHTML = status === 2
-                ? `<h1>Draw</h1><br><div class="reason">by stalemate</div>`
+            this.endDiv.querySelector(".container").innerHTML = status > 1
+                ? `<h1>Draw</h1><br><div class="reason">${["", "by stalemate", "by insufficient material", "by 50 move rule", "by repetition"][status]}</div>`
                 : `<h1>${piece.type[0] === "w" ? "White" : "Black"} won</h1><br><div class="reason">by checkmate</div>`;
         } else if (ui) {
             if (promotes) this.PROMOTE_SOUND.play().then(r => r);
