@@ -147,7 +147,7 @@ class Board {
         this.renderCanvas();
     };
 
-    undo() {
+    undo(undoUI = true) {
         const move = this.history.at(-1);
         if (!move) return null;
         const piece = this.get(move.xD, move.yD);
@@ -161,10 +161,12 @@ class Board {
         this.history.splice(-1, 1);
         this.wholeHistory.splice(-1, 1);
         this.turn = !this.turn;
-        this.endDiv.style.opacity = "0";
-        this.endDiv.style.pointerEvents = "none";
-        this.promoteDiv.style.opacity = "0";
-        this.promoteDiv.style.pointerEvents = "none";
+        if (undoUI) {
+            this.endDiv.style.opacity = "0";
+            this.endDiv.style.pointerEvents = "none";
+            this.promoteDiv.style.opacity = "0";
+            this.promoteDiv.style.pointerEvents = "none";
+        }
         return move;
     };
 
@@ -203,7 +205,7 @@ class Board {
             if (piece.type[0] !== type) continue;
             for (const move of this.getMovesOf(piece)) {
                 if (this.movePiece(piece, move[0], move[1], false, false, false)) {
-                    this.undo();
+                    this.undo(false);
                     return 0;
                 }
             }
@@ -400,7 +402,7 @@ class Board {
         }
         const promotes = piece.type[1] === "p" && y === (piece.type[0] === "w" ? 0 : 7);
         const checks = this.isChecked(piece.type[0] === "w" ? "b" : "w");
-        if (promotes) {
+        if (promotes && ui) {
             if (this.div) {
                 const proms = this.promoteDiv.querySelectorAll("[data-prom]");
                 const ex = this.ls || [];
@@ -423,6 +425,7 @@ class Board {
                 }
                 this.promoteDiv.style.opacity = "1";
                 this.promoteDiv.style.pointerEvents = "auto";
+                console.log(1)
             } else throw new Error("Promotion requires UI.");
         }
         this.removePiece(capture);
