@@ -431,14 +431,13 @@ class Board {
         }
         this.removePiece(capture);
         this.updatePiece(piece);
-        this.renderCanvas();
         let status;
         if (checkEnd && !force) status = this.getEndStatus(piece.type[0] === "w" ? "b" : "w");
         if (status && this.div) {
             this.endDiv.style.opacity = "1";
             this.endDiv.style.pointerEvents = "auto";
             this.endDiv.querySelector(".container").innerHTML = status > 1
-                ? `<h1>Draw</h1><br><div class="reason">${["", "by stalemate", "by insufficient material", "by 50 move rule", "by repetition"][status]}</div>`
+                ? `<h1>Draw</h1><br><div class="reason">${["", "", "by stalemate", "by insufficient material", "by 50 move rule", "by repetition"][status]}</div>`
                 : `<h1>${piece.type[0] === "w" ? "White" : "Black"} won</h1><br><div class="reason">by checkmate</div>`;
         } else if (ui) {
             if (promotes) this.PROMOTE_SOUND.play().then(r => r);
@@ -446,6 +445,7 @@ class Board {
             if (capture) this.CAPTURE_SOUND.play().then(r => r);
             if (!promotes && !checks && !capture) this.MOVE_SELF_SOUND.play().then(r => r);
         }
+        this.renderCanvas();
         return true;
     };
 
