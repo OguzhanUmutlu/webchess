@@ -1,9 +1,6 @@
 // todo: timer
 // todo: sounds
 // todo: force move toggle
-// todo: hover backgrounds when clicking/hovering pieces
-// todo: moving pieces via clicking squares
-// todo: showing the available squares when clicked on pieces
 // todo: on timeout, if a team cannot possibly win(has only king), then it's draw
 // todo: draw: agreement, resigning, timeout
 
@@ -221,6 +218,13 @@ class Board {
         this.canvas.height = rect.height;
         this.fCanvas.width = rect.width;
         this.fCanvas.height = rect.height;
+        if (innerWidth > innerHeight) {
+            this.div.style.width = "auto";
+            this.div.style.height = "90%";
+        } else {
+            this.div.style.width = "90%";
+            this.div.style.height = "auto";
+        }
     };
 
     /*** @param {HTMLDivElement} div */
@@ -242,7 +246,6 @@ class Board {
         div.appendChild(this.fCanvas);
         for (const piece of this.pieces) this.updatePiece(piece);
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.classList.add("coordinates");
 
         svg.setAttribute("viewBox", "0 0 100 100");
         svg.innerHTML = [
@@ -285,32 +288,25 @@ class Board {
         div.appendChild(promoteMenu);
         div.appendChild(svg);
 
-        const eventHand = (pieceEv, boardEv, touch = false) => {
+        const eventHand = fnName => {
             return ev => {
                 const el = ev.composedPath()[0];
                 if (!el) return;
-                const isPiece = el.classList.contains("piece");
                 const rect = div.getBoundingClientRect();
-                if (touch) ev = ev.touches[0];
-                if (!touch) return;
+                if ("touches" in ev) ev = ev.touches[0];
+                if (!ev) return;
                 const X = ev.clientX - rect.x, Y = ev.clientY - rect.y;
-                let pos = this.__getClientPos(X, Y);
-                let piece;
-                if (isPiece) {
-                    piece = Array.from(this.pieces).find(i => i.div === el);
-                    if (pieceEv) this[pieceEv](piece);
-                }
-                if (boardEv) this[boardEv](pos[0], pos[1], X, Y, piece);
+                const pos = this.__getClientPos(X, Y);
+                if (fnName) this[fnName](pos[0], pos[1], X, Y);
             };
         };
 
-        this.div.addEventListener("click", eventHand(null, "onClickBoard"));
-        this.div.addEventListener("mousedown", eventHand("onMouseDownPiece", "onMouseDownBoard"));
-        addEventListener("mousemove", eventHand(null, "onMouseMoveBoard"));
-        addEventListener("mouseup", eventHand("onMouseUpPiece", "onMouseUpBoard"));
-        this.div.addEventListener("touchstart", eventHand("onMouseDownPiece", "onMouseDownBoard"));
-        addEventListener("touchmove", eventHand("onMouseMovePiece", "onMouseMoveBoard"));
-        addEventListener("touchend", eventHand(null, "onMouseDownBoard"));
+        this.div.addEventListener("mousedown", eventHand("onMouseDown"));
+        addEventListener("mousemove", eventHand("onMouseMove"));
+        addEventListener("mouseup", eventHand("onMouseUp"));
+        this.div.addEventListener("touchstart", eventHand("onMouseDown"));
+        addEventListener("touchmove", eventHand("onMouseMove"));
+        addEventListener("touchend", eventHand("onMouseUp"));
     };
 
     setBoardTexture(textureId) {
@@ -514,66 +510,65 @@ class Board {
         ];
     };
 
-    onMouseUpPiece(piece) {
-    };
-
-    onMouseDownPiece(piece) {
-        this.lastTouchedPiece = piece;
-        this.dragging = false;
-        this.renderCanvas();
-    };
-
-    onClickBoard(x, y, _, __, touchedPiece) {
-        if (this.dragging || this.mouseMoved) return;
-        const dPiece = this.lastTouchedPiece;
-        if (dPiece) {
-            this.lastTouchedPiece = null;
-            if (!this.movePiece(dPiece, x, y, this.FORCE)) {
-                this.updatePiece(dPiece);
-                this.lastTouchedPiece = dPiece;
-                if (!touchedPiece) {
-                    this.lastTouchedPiece = null;
-                    this.renderCanvas();
-                }
-            } else this.dragging = false;
-        }
-    };
-
-    onMouseDownBoard() {
+    onMouseDown(x, y) {
         this.mouseDown = true;
         this.mouseMoved = false;
-    };
 
-    onMouseMoveBoard(x, y, mx, my) {
-        if (this.mouseDown) this.mouseMoved = true;
-        const piece = this.lastTouchedPiece;
-        if (piece && this.mouseDown && !this.dragging) {
-            if (piece.div) piece.div.classList.add("dragging-piece");
-            this.dragging = true;
+        const piece = this.get(x, y);
+        this.mouseLastDownPiece = piece;
+        if (piece && !this.FORCE && this.turn === (piece.type[0] === "w")) {
+            this.lastTouchedPiece = piece;
+            this.dragging = false;
+            this.renderCanvas();
         }
-        if (!this.dragging) return;
-        piece.div.style.left = mx + "px";
-        piece.div.style.top = my + "px";
-        this.mouseX = x;
-        this.mouseY = y;
-        this.mouseAbsX = mx;
-        this.mouseAbsY = my;
-        this.renderCanvas();
     };
 
-    onMouseUpBoard(x, y) {
+    onMouseUp(x, y) {
         this.mouseDown = false;
-        const dPiece = this.lastTouchedPiece;
-        if (this.dragging && dPiece) {
+
+        const piece = this.get(x, y);
+        const holdPiece = this.lastTouchedPiece;
+        if (!holdPiece) return;
+
+        if (!this.mouseMoved) {
+            // click to move
+            this.lastTouchedPiece = null;
+            this.dragging = false;
+            if (!this.movePiece(holdPiece, x, y, this.FORCE)) {
+                this.updatePiece(holdPiece);
+                this.lastTouchedPiece = piece;
+                this.renderCanvas();
+            }
+            return;
+        }
+
+        if (this.dragging) {
             this.dragging = false;
             this.lastTouchedPiece = null;
-            dPiece.div.classList.remove("dragging-piece");
-            if (!this.movePiece(dPiece, x, y, this.FORCE)) {
-                this.updatePiece(dPiece);
-                this.lastTouchedPiece = dPiece;
+            holdPiece.div.classList.remove("dragging-piece");
+            if (!this.movePiece(holdPiece, x, y, this.FORCE)) {
+                this.updatePiece(holdPiece);
+                this.lastTouchedPiece = holdPiece;
                 this.renderCanvas();
             }
         }
+    };
+
+    onMouseMove(x, y, mx, my) {
+        if (!this.mouseDown) return;
+        this.mouseMoved = true;
+        const holdPiece = this.lastTouchedPiece;
+        if (!holdPiece) return;
+        if (!this.dragging) {
+            if (this.mouseLastDownPiece !== holdPiece) return;
+            if (holdPiece.div) holdPiece.div.classList.add("dragging-piece");
+            this.dragging = true;
+        }
+        holdPiece.div.style.left = mx + "px";
+        holdPiece.div.style.top = my + "px";
+        this.mouseX = x;
+        this.mouseY = y;
+        this.renderCanvas();
     };
 
     updatePiece(piece) {
@@ -591,24 +586,18 @@ class Board {
 
     resetPieces() {
         this.clearPieces();
+
         for (let i = 0; i < 8; i++) {
             this.createPiece(i, 1, "bp");
             this.createPiece(i, 6, "wp");
         }
-        this.createPiece(0, 0, "br");
-        this.createPiece(7, 0, "br");
-        this.createPiece(0, 7, "wr");
-        this.createPiece(7, 7, "wr");
 
-        this.createPiece(1, 0, "bn");
-        this.createPiece(6, 0, "bn");
-        this.createPiece(1, 7, "wn");
-        this.createPiece(6, 7, "wn");
-
-        this.createPiece(2, 0, "bb");
-        this.createPiece(5, 0, "bb");
-        this.createPiece(2, 7, "wb");
-        this.createPiece(5, 7, "wb");
+        ["r", "n", "b"].forEach((p, i) => {
+            this.createPiece(i, 0, "b" + p);
+            this.createPiece(7 - i, 0, "b" + p);
+            this.createPiece(i, 7, "w" + p);
+            this.createPiece(7 - i, 7, "w" + p);
+        });
 
         this.createPiece(3, 0, "bq");
         this.createPiece(4, 0, "bk");
