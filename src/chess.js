@@ -196,8 +196,8 @@ class Board {
         }
         const lastPawnOrCapture = this.history.length - this.history.lastIndexOf(i => i.pieceType[1] === "p" || i.capture);
         if (lastPawnOrCapture >= 50) return 4;
-        const lastWhole = this.history.at(-1);
-        if (this.history.filter(i => i === lastWhole).length >= 3) return 5;
+        const lastWhole = this.wholeHistory.at(-1);
+        if (this.wholeHistory.filter(i => i === lastWhole).length >= 3) return 5;
 
         let t = this.turn;
         this.turn = type === "w";
@@ -237,6 +237,7 @@ class Board {
         this.fCanvas = document.createElement("canvas");
         this.fCtx = this.fCanvas.getContext("2d");
         this.fCanvas.style.zIndex = "3";
+        div.addEventListener("contextmenu", e => e.preventDefault());
 
         removeEventListener("resize", this.cnList);
 
