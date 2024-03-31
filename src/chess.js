@@ -78,7 +78,11 @@ const GetAllMoveList = {
             [0, 1],
             [1, 0],
             [0, -1],
-            [-1, 0]
+            [-1, 0],
+            [1, 1],
+            [1, -1],
+            [-1, 1],
+            [-1, -1]
         ], piece, board, mv);
     },
     k(piece, board, mv) {
@@ -143,6 +147,7 @@ class Board {
         for (const piece of this.pieces) {
             this.updatePiece(piece);
         }
+        this.renderCanvas();
     };
 
     undo() {
@@ -166,11 +171,14 @@ class Board {
         return move;
     };
 
+    canBeEaten(piece) {
+        return Array.from(this.pieces).find(i => i.type[0] !== piece[0] && this.canMovePiece(i, piece.x, piece.y));
+    };
+
     isChecked(type = "w") {
         const pieces = Array.from(this.pieces);
         const king = pieces.find(i => i.type === type + "k");
-        if (!king) return false;
-        return pieces.find(i => i.type[0] !== type && this.canMovePiece(i, king.x, king.y));
+        return king && this.canBeEaten(king);
     };
 
     // Returns: 0(nothing), 1(checkmate), 2(stalemate), 3(insufficient material), 4(50 move rule), 5(repetition)
@@ -207,10 +215,24 @@ class Board {
         return this.isChecked(type) ? 1 : 2;
     };
 
+    resizeCanvas() {
+        const rect = this.div.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+    };
+
     /*** @param {HTMLDivElement} div */
     setDiv(div) {
         this.div = div;
         this.canvas = document.createElement("canvas");
+        this.ctx = this.canvas.getContext("2d");
+
+        removeEventListener("resize", this.cnList);
+
+        addEventListener("resize", this.cnList = () => this.resizeCanvas());
+        this.resizeCanvas();
+        this.renderCanvas();
+
         div.appendChild(this.canvas);
         for (const piece of this.pieces) this.updatePiece(piece);
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -378,6 +400,7 @@ class Board {
         this.updatePiece(piece);
         let status;
         if (checkEnd && !force) status = this.getEndStatus(piece.type[0] === "w" ? "b" : "w");
+        this.renderCanvas();
         if (status && this.div) {
             this.endDiv.style.opacity = "1";
             this.endDiv.style.pointerEvents = "auto";
@@ -391,6 +414,25 @@ class Board {
             if (!promotes && !checks && !capture) this.MOVE_SELF_SOUND.play().then(r => r);
         }
         return true;
+    };
+
+    __drawSquare(x, y) {
+        if (this.flipped) y = 7 - y;
+        const s = this.canvas.width / 8;
+        this.ctx.fillRect(s * x, s * y, s, s);
+    };
+
+    renderCanvas() {
+        if (!this.canvas) return;
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        const pieces = Array.from(this.pieces);
+        const whiteCheck = this.isChecked("w");
+        const blackCheck = this.isChecked("b");
+        const whiteKing = pieces.find(i => i.type === "wk");
+        const blackKing = pieces.find(i => i.type === "bk");
+        this.ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+        if (whiteCheck) this.__drawSquare(whiteKing.x, whiteKing.y);
+        if (blackCheck) this.__drawSquare(blackKing.x, blackKing.y);
     };
 
     updatePiece(piece) {
