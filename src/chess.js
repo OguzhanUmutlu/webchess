@@ -378,7 +378,6 @@ class Board {
         this.updatePiece(piece);
         let status;
         if (checkEnd && !force) status = this.getEndStatus(piece.type[0] === "w" ? "b" : "w");
-        console.log(status)
         if (status && this.div) {
             this.endDiv.style.opacity = "1";
             this.endDiv.style.pointerEvents = "auto";

@@ -4,7 +4,7 @@ body {
     overflow: hidden;
 }
 
-.undo, .flip {
+.undo, .flip, .reset {
     position: absolute;
     top: -30px;
     right: 0;
@@ -16,12 +16,15 @@ body {
     cursor: pointer;
 }
 
+.reset {
+    margin-top: 2px;
+    right: 60px;
+    background-image: url("./assets/reset.png");
+    aspect-ratio: 2048 / 1781;
+}
+
 .flip {
     right: 30px;
     background-image: url("./assets/flip.png");
     aspect-ratio: 512 / 512;
-}
-
-.undo:hover {
-    cursor: pointer;
 }

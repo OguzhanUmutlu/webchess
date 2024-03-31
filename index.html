@@ -12,6 +12,7 @@
 </head>
 <body>
 <div class="chess">
+    <div class="reset"></div>
     <div class="undo"></div>
     <div class="flip"></div>
 </div>
@@ -21,13 +22,9 @@
     board.setDiv(document.querySelector(".chess"));
     board.setBoardTexture(1);
     board.resetPieces();
-    board.removePiece(board.get(3, 7));
-    board.removePiece(board.get(3, 6));
-    board.removePiece(board.get(3, 1));
-    board.createPiece(3, 2, "br");
-
 
     document.querySelector(".undo").addEventListener("click", () => board.undo());
     document.querySelector(".flip").addEventListener("click", () => board.flip());
+    document.querySelector(".reset").addEventListener("click", () => board.resetPieces());
 </script>
 </html>
