@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./src/chess.css">
+    <script src="./src/chess.js"></script>
+    <title>Chess</title>
+</head>
+<body>
+<div class="chess">
+    <div class="undo"></div>
+    <div class="flip"></div>
+</div>
+</body>
+<script>
+    const board = new Board;
+    board.setDiv(document.querySelector(".chess"));
+    board.setBoardTexture(1);
+    board.resetPieces();
+    board.removePiece(board.get(3, 7));
+    board.removePiece(board.get(3, 6));
+    board.removePiece(board.get(3, 1));
+    board.createPiece(3, 2, "br");
+
+
+    document.querySelector(".undo").addEventListener("click", () => board.undo());
+    document.querySelector(".flip").addEventListener("click", () => board.flip());
+</script>
+</html>

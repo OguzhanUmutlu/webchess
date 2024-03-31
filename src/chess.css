@@ -1,0 +1,98 @@
+.chess {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Helvetica, Arial, sans-serif;
+    user-select: none;
+    position: absolute;
+    background-size: 100% 100%;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    height: 90%;
+    aspect-ratio: 1 / 1;
+}
+
+.piece {
+    position: absolute;
+    width: 12.5%;
+    aspect-ratio: 1 / 1;
+    background-size: 100% 100%;
+    cursor: grab;
+}
+
+.dragging-piece {
+    translate: -50% -50%;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.chess > canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.coordinate-dark, .coordinate-light {
+    font-weight: 600;
+}
+
+.coordinate-light {
+    fill: #739552;
+}
+
+.coordinate-dark {
+    fill: #EBECD0;
+}
+
+.promote-menu, .end-screen {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .5s;
+}
+
+.promote-menu > .container, .end-screen > .container {
+    background: rgba(235, 236, 208, 0.8);
+    padding: 30px 40px;
+    border-radius: 10px;
+}
+
+.prom-options {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.prom-options > div {
+    width: 48px;
+    aspect-ratio: 1 / 1;
+    background-size: 100% 100%;
+    margin: 5px;
+    padding: 4px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.prom-options > div:hover {
+    background-color: rgba(235, 236, 208, 0.8);
+}
+
+.end-screen > .container {
+    background: rgba(235, 236, 208, 0.9);
+    padding-top: 40px;
+    padding-bottom: 60px;
+    text-align: center;
+}
+
+.end-screen > .container > .reason {
+    margin-top: -35px;
+}

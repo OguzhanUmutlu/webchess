@@ -1,0 +1,27 @@
+body {
+    margin: 0;
+    background: #302E2B;
+    overflow: hidden;
+}
+
+.undo, .flip {
+    position: absolute;
+    top: -30px;
+    right: 0;
+    background-image: url("./assets/undo.png");
+    background-size: 100% 100%;
+    width: 20px;
+    aspect-ratio: 461 / 512;
+    z-index: 10000;
+    cursor: pointer;
+}
+
+.flip {
+    right: 30px;
+    background-image: url("./assets/flip.png");
+    aspect-ratio: 512 / 512;
+}
+
+.undo:hover {
+    cursor: pointer;
+}
