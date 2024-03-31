@@ -219,6 +219,8 @@ class Board {
         const rect = this.div.getBoundingClientRect();
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
+        this.fCanvas.width = rect.width;
+        this.fCanvas.height = rect.height;
     };
 
     /*** @param {HTMLDivElement} div */
@@ -226,6 +228,9 @@ class Board {
         this.div = div;
         this.canvas = document.createElement("canvas");
         this.ctx = this.canvas.getContext("2d");
+        this.fCanvas = document.createElement("canvas");
+        this.fCtx = this.fCanvas.getContext("2d");
+        this.fCanvas.style.zIndex = "3";
 
         removeEventListener("resize", this.cnList);
 
@@ -234,6 +239,7 @@ class Board {
         this.renderCanvas();
 
         div.appendChild(this.canvas);
+        div.appendChild(this.fCanvas);
         for (const piece of this.pieces) this.updatePiece(piece);
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.classList.add("coordinates");
@@ -275,9 +281,36 @@ class Board {
         endScreen.classList.add("end-screen");
         endScreen.innerHTML = `<div class="container"></div>`;
 
-        this.div.appendChild(endScreen);
-        this.div.appendChild(promoteMenu);
-        this.div.appendChild(svg);
+        div.appendChild(endScreen);
+        div.appendChild(promoteMenu);
+        div.appendChild(svg);
+
+        const eventHand = (pieceEv, boardEv, touch = false) => {
+            return ev => {
+                const el = ev.composedPath()[0];
+                if (!el) return;
+                const isPiece = el.classList.contains("piece");
+                const rect = div.getBoundingClientRect();
+                if (touch) ev = ev.touches[0];
+                if (!touch) return;
+                const X = ev.clientX - rect.x, Y = ev.clientY - rect.y;
+                let pos = this.__getClientPos(X, Y);
+                let piece;
+                if (isPiece) {
+                    piece = Array.from(this.pieces).find(i => i.div === el);
+                    if (pieceEv) this[pieceEv](piece);
+                }
+                if (boardEv) this[boardEv](pos[0], pos[1], X, Y, piece);
+            };
+        };
+
+        this.div.addEventListener("click", eventHand(null, "onClickBoard"));
+        this.div.addEventListener("mousedown", eventHand("onMouseDownPiece", "onMouseDownBoard"));
+        addEventListener("mousemove", eventHand(null, "onMouseMoveBoard"));
+        addEventListener("mouseup", eventHand("onMouseUpPiece", "onMouseUpBoard"));
+        this.div.addEventListener("touchstart", eventHand("onMouseDownPiece", "onMouseDownBoard"));
+        addEventListener("touchmove", eventHand("onMouseMovePiece", "onMouseMoveBoard"));
+        addEventListener("touchend", eventHand(null, "onMouseDownBoard"));
     };
 
     setBoardTexture(textureId) {
@@ -398,9 +431,9 @@ class Board {
         }
         this.removePiece(capture);
         this.updatePiece(piece);
+        this.renderCanvas();
         let status;
         if (checkEnd && !force) status = this.getEndStatus(piece.type[0] === "w" ? "b" : "w");
-        this.renderCanvas();
         if (status && this.div) {
             this.endDiv.style.opacity = "1";
             this.endDiv.style.pointerEvents = "auto";
@@ -416,15 +449,32 @@ class Board {
         return true;
     };
 
-    __drawSquare(x, y) {
+    __drawSquare(x, y, ctx = this.ctx) {
         if (this.flipped) y = 7 - y;
-        const s = this.canvas.width / 8;
-        this.ctx.fillRect(s * x, s * y, s, s);
+        const s = ctx.canvas.width / 8;
+        ctx.fillRect(s * x, s * y, s, s);
+    };
+
+    __drawSquareStroke(x, y, ctx = this.ctx) {
+        if (this.flipped) y = 7 - y;
+        const s = ctx.canvas.width / 8;
+        ctx.strokeRect(s * x + 2, s * y + 2, s - 4, s - 4);
+    };
+
+    __drawCircle(x, y, ctx = this.ctx) {
+        if (this.flipped) y = 7 - y;
+        const s = ctx.canvas.width / 8;
+        ctx.beginPath();
+        ctx.lineWidth = s / 20;
+        ctx.arc(s * (x + 0.5), s * (y + 0.5), s / 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.closePath();
     };
 
     renderCanvas() {
         if (!this.canvas) return;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.fCtx.clearRect(0, 0, this.fCanvas.width, this.fCanvas.height);
         const pieces = Array.from(this.pieces);
         const whiteCheck = this.isChecked("w");
         const blackCheck = this.isChecked("b");
@@ -433,6 +483,97 @@ class Board {
         this.ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
         if (whiteCheck) this.__drawSquare(whiteKing.x, whiteKing.y);
         if (blackCheck) this.__drawSquare(blackKing.x, blackKing.y);
+        const touch = this.lastTouchedPiece;
+        if (touch) {
+            this.ctx.fillStyle = "rgba(255, 255, 0, 0.5)";
+            this.__drawSquare(touch.x, touch.y);
+            this.ctx.fillStyle = "rgba(0, 255, 255, 0.5)";
+            this.ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+            if (this.dragging) this.__drawSquareStroke(this.mouseX, this.mouseY);
+            if (this.turn === (touch.type[0] === "w")) {
+                const moves = this.getMovesOf(touch);
+                for (const move of moves) {
+                    let ct = this.ctx;
+                    this.ctx.strokeStyle = "rgba(0, 0, 255, 0.5)";
+                    if (this.get(move[0], move[1])) {
+                        this.fCtx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+                        ct = this.fCtx;
+                    }
+                    this.__drawCircle(move[0], move[1], ct);
+                }
+            }
+        }
+    };
+
+    __getClientPos(offsetX, offsetY) {
+        const rect = this.div.getBoundingClientRect();
+        const y = Math.round(offsetY / rect.width * 8 - 0.5);
+        return [
+            Math.round(offsetX / rect.width * 8 - 0.5),
+            this.flipped ? 7 - y : y
+        ];
+    };
+
+    onMouseUpPiece(piece) {
+    };
+
+    onMouseDownPiece(piece) {
+        this.lastTouchedPiece = piece;
+        this.dragging = false;
+        this.renderCanvas();
+    };
+
+    onClickBoard(x, y, _, __, touchedPiece) {
+        if (this.dragging || this.mouseMoved) return;
+        const dPiece = this.lastTouchedPiece;
+        if (dPiece) {
+            this.lastTouchedPiece = null;
+            if (!this.movePiece(dPiece, x, y, this.FORCE)) {
+                this.updatePiece(dPiece);
+                this.lastTouchedPiece = dPiece;
+                if (!touchedPiece) {
+                    this.lastTouchedPiece = null;
+                    this.renderCanvas();
+                }
+            } else this.dragging = false;
+        }
+    };
+
+    onMouseDownBoard() {
+        this.mouseDown = true;
+        this.mouseMoved = false;
+    };
+
+    onMouseMoveBoard(x, y, mx, my) {
+        if (this.mouseDown) this.mouseMoved = true;
+        const piece = this.lastTouchedPiece;
+        if (piece && this.mouseDown && !this.dragging) {
+            if (piece.div) piece.div.classList.add("dragging-piece");
+            this.dragging = true;
+        }
+        if (!this.dragging) return;
+        piece.div.style.left = mx + "px";
+        piece.div.style.top = my + "px";
+        this.mouseX = x;
+        this.mouseY = y;
+        this.mouseAbsX = mx;
+        this.mouseAbsY = my;
+        this.renderCanvas();
+    };
+
+    onMouseUpBoard(x, y) {
+        this.mouseDown = false;
+        const dPiece = this.lastTouchedPiece;
+        if (this.dragging && dPiece) {
+            this.dragging = false;
+            this.lastTouchedPiece = null;
+            dPiece.div.classList.remove("dragging-piece");
+            if (!this.movePiece(dPiece, x, y, this.FORCE)) {
+                this.updatePiece(dPiece);
+                this.lastTouchedPiece = dPiece;
+                this.renderCanvas();
+            }
+        }
     };
 
     updatePiece(piece) {
@@ -441,34 +582,6 @@ class Board {
         if (!div) {
             this.div.appendChild(piece.div = div = document.createElement("div"));
             div.classList.add("piece");
-            div.addEventListener("mousedown", ev => {
-                div.classList.add("dragging-piece");
-                const target = {x: piece.x, y: piece.y};
-
-                const onMove = ev => {
-                    const rect = this.div.getBoundingClientRect();
-                    const x = Math.min(rect.width, Math.max(0, ev.clientX - rect.x));
-                    const y = Math.min(rect.height, Math.max(0, ev.clientY - rect.y));
-                    div.style.left = x + "px";
-                    div.style.top = y + "px";
-                    target.x = Math.round(x / rect.width * 8 - 0.5);
-                    target.y = Math.round(y / rect.height * 8 - 0.5);
-                    if (this.flipped) target.y = 7 - target.y;
-                }
-
-                const onStop = () => {
-                    removeEventListener("mousemove", onMove);
-                    removeEventListener("mouseup", onStop);
-                    div.classList.remove("dragging-piece");
-                    if (!this.movePiece(piece, target.x, target.y, this.FORCE)) {
-                        this.updatePiece(piece);
-                    }
-                };
-
-                onMove(ev);
-                addEventListener("mousemove", onMove);
-                addEventListener("mouseup", onStop);
-            });
         }
         if (div.parentElement !== this.div) this.div.appendChild(div);
         div.style.backgroundImage = `url("./assets/pieces/${this.PIECE_TEXTURE_ID}/${piece.type}.png")`;
